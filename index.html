@@ -106,26 +106,34 @@ function render(data){
  $("updated").textContent="Atualizado às "+dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
  $("status").textContent="Fonte: Open-Meteo · Atualização automática a cada 15 minutos";
 }
-async function load(){
- $("status").textContent="Atualizando informações meteorológicas...";
- const controller=new AbortController();
- const timer=setTimeout(()=>controller.abort(),12000);
- try{
-  const response=await fetch(url,{cache:"no-store",signal:controller.signal});
-  if(!response.ok)throw new Error("HTTP "+response.status);
-  const data=await response.json();
-  if(!data.current||!data.daily)throw new Error("Dados incompletos");
-  render(data);
- }catch(e){
-  $("status").textContent="Não foi possível atualizar a previsão. Nova tentativa em 1 minuto.";
-  if(!$("temp").textContent||$("temp").textContent==="--°"){
-   $("description").textContent="Dados temporariamente indisponíveis";
+
+async function load() {
+  const status = $("status");
+  status.textContent = "Consultando a previsão...";
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error("HTTP " + response.status);
+    }
+
+    const data = await response.json();
+
+    if (!data.current || !data.daily) {
+      throw new Error("Dados incompletos");
+    }
+
+    render(data);
+  } catch (e) {
+    status.textContent =
+      "Falha na consulta: " +
+      (e.message || String(e));
+
+    if ($("temp").textContent === "--°") {
+      $("description").textContent =
+        "Não foi possível carregar a previsão";
+    }
   }
- }finally{clearTimeout(timer);}
 }
-load();
-setInterval(load,15*60*1000);
-})();
-</script>
-</body>
-</html>
+  
