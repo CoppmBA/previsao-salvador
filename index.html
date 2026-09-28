@@ -57,83 +57,121 @@ h2{font-size:clamp(15px,1.6vw,23px);margin:0}
 </section>
 <div id="status" role="status">Os dados são atualizados automaticamente.</div>
 </div>
+
 <script>
-(function(){
-"use strict";
-const url="https://api.open-meteo.com/v1/forecast?latitude=-12.9714&longitude=-38.5014&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=America%2FSao_Paulo&forecast_days=5";
-const $=id=>document.getElementById(id);
-const weather={
- 0:["Céu limpo","☀️"],1:["Predominantemente limpo","🌤️"],2:["Parcialmente nublado","⛅"],3:["Nublado","☁️"],
- 45:["Neblina","🌫️"],48:["Neblina com geada","🌫️"],
- 51:["Garoa leve","🌦️"],53:["Garoa moderada","🌦️"],55:["Garoa intensa","🌧️"],
- 56:["Garoa congelante leve","🌧️"],57:["Garoa congelante intensa","🌧️"],
- 61:["Chuva leve","🌦️"],63:["Chuva moderada","🌧️"],65:["Chuva forte","🌧️"],
- 66:["Chuva congelante leve","🌧️"],67:["Chuva congelante forte","🌧️"],
- 71:["Neve leve","🌨️"],73:["Neve moderada","🌨️"],75:["Neve forte","🌨️"],77:["Grãos de neve","🌨️"],
- 80:["Pancadas leves","🌦️"],81:["Pancadas moderadas","🌧️"],82:["Pancadas fortes","⛈️"],
- 85:["Pancadas de neve leves","🌨️"],86:["Pancadas de neve fortes","🌨️"],
- 95:["Trovoada","⛈️"],96:["Trovoada com granizo leve","⛈️"],99:["Trovoada com granizo forte","⛈️"]
-};
-function info(code,isDay){
- const v=weather[code]||["Condição variável","🌤️"];
- let icon=v[1];
- if(code===0)icon=isDay?"☀️":"🌙";
- if(code===1)icon=isDay?"🌤️":"🌙";
- if(code===2)icon=isDay?"⛅":"☁️";
- return {text:v[0],icon};
-}
-function dateLabel(s,index){
- if(index===0)return "Hoje";
- const d=new Date(s+"T12:00:00");
- return new Intl.DateTimeFormat("pt-BR",{weekday:"short",timeZone:"America/Sao_Paulo"}).format(d).replace(".","");
-}
-function render(data){
- const c=data.current;
- const now=info(c.weather_code,c.is_day);
- $("currentIcon").textContent=now.icon;
- $("temp").textContent=Math.round(c.temperature_2m)+"°";
- $("description").textContent=now.text;
- $("feels").textContent=Math.round(c.apparent_temperature)+"°";
- $("humidity").textContent=Math.round(c.relative_humidity_2m)+"%";
- $("wind").textContent=Math.round(c.wind_speed_10m)+" km/h";
- const d=data.daily;
- $("forecast").innerHTML=d.time.map((day,i)=>{
- const w=info(d.weather_code[i],1);
- const rain=d.precipitation_probability_max[i];
- return '<div class="day"><div class="dayname">'+dateLabel(day,i)+'</div><div class="dayicon">'+w.icon+'</div><div class="daydesc">'+w.text+'</div><div class="temps">'+Math.round(d.temperature_2m_max[i])+'° / '+Math.round(d.temperature_2m_min[i])+'°</div><div class="rain">☔ '+(rain==null?"--":rain+"%")+'</div></div>';
- }).join("");
- const dt=new Date();
- $("updated").textContent="Atualizado às "+dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
- $("status").textContent="Fonte: Open-Meteo · Atualização automática a cada 15 minutos";
-}
+(function () {
+  "use strict";
 
-async function load() {
-  const status = $("status");
-  status.textContent = "Consultando a previsão...";
+  const url = "https://api.open-meteo.com/v1/forecast?latitude=-12.9714&longitude=-38.5014&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=America%2FSao_Paulo&forecast_days=5";
 
-  try {
-    const response = await fetch(url);
+  const $ = id => document.getElementById(id);
 
-    if (!response.ok) {
-      throw new Error("HTTP " + response.status);
-    }
+  const weather = {
+    0:["Céu limpo","☀️"], 1:["Predominantemente limpo","🌤️"],
+    2:["Parcialmente nublado","⛅"], 3:["Nublado","☁️"],
+    45:["Neblina","🌫️"], 48:["Neblina com geada","🌫️"],
+    51:["Garoa leve","🌦️"], 53:["Garoa moderada","🌦️"],
+    55:["Garoa intensa","🌧️"], 56:["Garoa congelante leve","🌧️"],
+    57:["Garoa congelante intensa","🌧️"],
+    61:["Chuva leve","🌦️"], 63:["Chuva moderada","🌧️"],
+    65:["Chuva forte","🌧️"], 66:["Chuva congelante leve","🌧️"],
+    67:["Chuva congelante forte","🌧️"],
+    71:["Neve leve","🌨️"], 73:["Neve moderada","🌨️"],
+    75:["Neve forte","🌨️"], 77:["Grãos de neve","🌨️"],
+    80:["Pancadas leves","🌦️"], 81:["Pancadas moderadas","🌧️"],
+    82:["Pancadas fortes","⛈️"], 85:["Pancadas de neve leves","🌨️"],
+    86:["Pancadas de neve fortes","🌨️"],
+    95:["Trovoada","⛈️"], 96:["Trovoada com granizo leve","⛈️"],
+    99:["Trovoada com granizo forte","⛈️"]
+  };
 
-    const data = await response.json();
+  function info(code, isDay) {
+    const v = weather[code] || ["Condição variável","🌤️"];
+    let icon = v[1];
+    if (code === 0) icon = isDay ? "☀️" : "🌙";
+    if (code === 1) icon = isDay ? "🌤️" : "🌙";
+    if (code === 2) icon = isDay ? "⛅" : "☁️";
+    return { text: v[0], icon: icon };
+  }
 
-    if (!data.current || !data.daily) {
-      throw new Error("Dados incompletos");
-    }
+  function dateLabel(s, index) {
+    if (index === 0) return "Hoje";
+    const d = new Date(s + "T12:00:00");
+    return new Intl.DateTimeFormat("pt-BR", {
+      weekday: "short",
+      timeZone: "America/Sao_Paulo"
+    }).format(d).replace(".", "");
+  }
 
-    render(data);
-  } catch (e) {
-    status.textContent =
-      "Falha na consulta: " +
-      (e.message || String(e));
+  function render(data) {
+    const c = data.current;
+    const now = info(c.weather_code, c.is_day);
 
-    if ($("temp").textContent === "--°") {
-      $("description").textContent =
-        "Não foi possível carregar a previsão";
+    $("currentIcon").textContent = now.icon;
+    $("temp").textContent = Math.round(c.temperature_2m) + "°";
+    $("description").textContent = now.text;
+    $("feels").textContent = Math.round(c.apparent_temperature) + "°";
+    $("humidity").textContent = Math.round(c.relative_humidity_2m) + "%";
+    $("wind").textContent = Math.round(c.wind_speed_10m) + " km/h";
+
+    const d = data.daily;
+    $("forecast").innerHTML = d.time.map((day, i) => {
+      const w = info(d.weather_code[i], 1);
+      const rain = d.precipitation_probability_max[i];
+
+      return '<div class="day">' +
+        '<div class="dayname">' + dateLabel(day, i) + '</div>' +
+        '<div class="dayicon">' + w.icon + '</div>' +
+        '<div class="daydesc">' + w.text + '</div>' +
+        '<div class="temps">' +
+        Math.round(d.temperature_2m_max[i]) + '° / ' +
+        Math.round(d.temperature_2m_min[i]) + '°</div>' +
+        '<div class="rain">☔ ' +
+        (rain == null ? "--" : rain + "%") + '</div>' +
+        '</div>';
+    }).join("");
+
+    const dt = new Date();
+    $("updated").textContent = "Atualizado às " +
+      dt.toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+    $("status").textContent =
+      "Fonte: Open-Meteo · Atualização automática a cada 15 minutos";
+  }
+
+  async function load() {
+    const status = $("status");
+    status.textContent = "Consultando a previsão...";
+
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("HTTP " + response.status);
+      }
+
+      const data = await response.json();
+
+      if (!data.current || !data.daily || !data.daily.time) {
+        throw new Error("Dados incompletos");
+      }
+
+      render(data);
+    } catch (e) {
+      status.textContent = "Falha na consulta: " +
+        (e.message || String(e));
+
+      if ($("temp").textContent === "--°") {
+        $("description").textContent =
+          "Não foi possível carregar a previsão";
+      }
     }
   }
-}
-  
+
+  load();
+  setInterval(load, 15 * 60 * 1000);
+})();
+</script>
