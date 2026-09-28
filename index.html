@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Previsão do Tempo - Salvador</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;font-family:Arial,Helvetica,sans-serif}
+body{background:linear-gradient(130deg,#102e50,#176a91);color:#fff;overflow:hidden}
+.panel{width:100%;height:100%;padding:3vh 3vw;display:flex;flex-direction:column;gap:2vh}
+header{display:flex;justify-content:space-between;align-items:center;gap:15px}
+h1{font-size:clamp(22px,3vw,42px);margin:0;font-weight:700}
+.subtitle{font-size:clamp(12px,1.3vw,19px);opacity:.8;margin-top:5px}
+#updated{font-size:clamp(11px,1.1vw,16px);opacity:.75;text-align:right}
+.current{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#ffffff16;border:1px solid #ffffff28;border-radius:20px;padding:2.5vh 3vw;min-height:32%}
+.temp-wrap{display:flex;align-items:center;gap:2vw}
+.icon{font-size:clamp(45px,8vw,110px);line-height:1}
+.temp{font-size:clamp(48px,9vw,120px);font-weight:700;letter-spacing:-4px}
+.desc{font-size:clamp(16px,2vw,27px);margin-top:5px}
+.details{display:grid;grid-template-columns:repeat(3,minmax(80px,1fr));gap:1vw;max-width:48%}
+.detail{background:#ffffff14;border-radius:12px;padding:1.5vh 1vw;text-align:center}
+.detail .label{font-size:clamp(10px,1.1vw,16px);opacity:.75}
+.detail .value{font-size:clamp(16px,2vw,27px);font-weight:bold;margin-top:8px}
+h2{font-size:clamp(15px,1.6vw,23px);margin:0}
+.forecast{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1vw;flex:1;min-height:0}
+.day{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1vh;background:#ffffff14;border:1px solid #ffffff20;border-radius:14px;padding:1vh .5vw;text-align:center;min-width:0}
+.dayname{font-size:clamp(11px,1.3vw,18px);font-weight:bold}
+.dayicon{font-size:clamp(27px,4vw,52px)}
+.daydesc{font-size:clamp(10px,1vw,14px);opacity:.85}
+.temps{font-size:clamp(13px,1.5vw,21px);font-weight:bold}
+.rain{font-size:clamp(10px,1vw,14px);opacity:.85}
+#status{font-size:clamp(10px,1vw,14px);opacity:.8;min-height:1em}
+@media(max-width:600px){.panel{padding:12px;gap:10px}.current{padding:15px;flex-direction:column;align-items:stretch}.details{max-width:none}.forecast{gap:5px}.day{padding:8px 2px}.temp{letter-spacing:-2px}}
+</style>
+</head>
+<body>
+<div class="panel">
+<header>
+ <div><h1>☀️ Previsão do Tempo</h1><div class="subtitle">Salvador · Bahia</div></div>
+ <div id="updated">Consultando previsão...</div>
+</header>
+<section class="current">
+ <div class="temp-wrap">
+  <div class="icon" id="currentIcon">⛅</div>
+  <div><div class="temp" id="temp">--°</div><div class="desc" id="description">Carregando...</div></div>
+ </div>
+ <div class="details">
+  <div class="detail"><div class="label">Sensação</div><div class="value" id="feels">--°</div></div>
+  <div class="detail"><div class="label">Umidade</div><div class="value" id="humidity">--%</div></div>
+  <div class="detail"><div class="label">Vento</div><div class="value" id="wind">-- km/h</div></div>
+ </div>
+</section>
+<h2>Próximos 5 dias</h2>
+<section class="forecast" id="forecast">
+ <div class="day">Carregando...</div>
+</section>
+<div id="status" role="status">Os dados são atualizados automaticamente.</div>
+</div>
+<script>
+(function(){
+"use strict";
+const url="https://api.open-meteo.com/v1/forecast?latitude=-12.9714&longitude=-38.5014&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=America%2FSao_Paulo&forecast_days=5";
+const $=id=>document.getElementById(id);
+const weather={
+ 0:["Céu limpo","☀️"],1:["Predominantemente limpo","🌤️"],2:["Parcialmente nublado","⛅"],3:["Nublado","☁️"],
+ 45:["Neblina","🌫️"],48:["Neblina com geada","🌫️"],
+ 51:["Garoa leve","🌦️"],53:["Garoa moderada","🌦️"],55:["Garoa intensa","🌧️"],
+ 56:["Garoa congelante leve","🌧️"],57:["Garoa congelante intensa","🌧️"],
+ 61:["Chuva leve","🌦️"],63:["Chuva moderada","🌧️"],65:["Chuva forte","🌧️"],
+ 66:["Chuva congelante leve","🌧️"],67:["Chuva congelante forte","🌧️"],
+ 71:["Neve leve","🌨️"],73:["Neve moderada","🌨️"],75:["Neve forte","🌨️"],77:["Grãos de neve","🌨️"],
+ 80:["Pancadas leves","🌦️"],81:["Pancadas moderadas","🌧️"],82:["Pancadas fortes","⛈️"],
+ 85:["Pancadas de neve leves","🌨️"],86:["Pancadas de neve fortes","🌨️"],
+ 95:["Trovoada","⛈️"],96:["Trovoada com granizo leve","⛈️"],99:["Trovoada com granizo forte","⛈️"]
+};
+function info(code,isDay){
+ const v=weather[code]||["Condição variável","🌤️"];
+ let icon=v[1];
+ if(code===0)icon=isDay?"☀️":"🌙";
+ if(code===1)icon=isDay?"🌤️":"🌙";
+ if(code===2)icon=isDay?"⛅":"☁️";
+ return {text:v[0],icon};
+}
+function dateLabel(s,index){
+ if(index===0)return "Hoje";
+ const d=new Date(s+"T12:00:00");
+ return new Intl.DateTimeFormat("pt-BR",{weekday:"short",timeZone:"America/Sao_Paulo"}).format(d).replace(".","");
+}
+function render(data){
+ const c=data.current;
+ const now=info(c.weather_code,c.is_day);
+ $("currentIcon").textContent=now.icon;
+ $("temp").textContent=Math.round(c.temperature_2m)+"°";
+ $("description").textContent=now.text;
+ $("feels").textContent=Math.round(c.apparent_temperature)+"°";
+ $("humidity").textContent=Math.round(c.relative_humidity_2m)+"%";
+ $("wind").textContent=Math.round(c.wind_speed_10m)+" km/h";
+ const d=data.daily;
+ $("forecast").innerHTML=d.time.map((day,i)=>{
+ const w=info(d.weather_code[i],1);
+ const rain=d.precipitation_probability_max[i];
+ return '<div class="day"><div class="dayname">'+dateLabel(day,i)+'</div><div class="dayicon">'+w.icon+'</div><div class="daydesc">'+w.text+'</div><div class="temps">'+Math.round(d.temperature_2m_max[i])+'° / '+Math.round(d.temperature_2m_min[i])+'°</div><div class="rain">☔ '+(rain==null?"--":rain+"%")+'</div></div>';
+ }).join("");
+ const dt=new Date();
+ $("updated").textContent="Atualizado às "+dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+ $("status").textContent="Fonte: Open-Meteo · Atualização automática a cada 15 minutos";
+}
+async function load(){
+ $("status").textContent="Atualizando informações meteorológicas...";
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  const response=await fetch(url,{cache:"no-store",signal:controller.signal});
+  if(!response.ok)throw new Error("HTTP "+response.status);
+  const data=await response.json();
+  if(!data.current||!data.daily)throw new Error("Dados incompletos");
+  render(data);
+ }catch(e){
+  $("status").textContent="Não foi possível atualizar a previsão. Nova tentativa em 1 minuto.";
+  if(!$("temp").textContent||$("temp").textContent==="--°"){
+   $("description").textContent="Dados temporariamente indisponíveis";
+  }
+ }finally{clearTimeout(timer);}
+}
+load();
+setInterval(load,15*60*1000);
+})();
+</script>
+</body>
+</html>
